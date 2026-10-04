@@ -21,6 +21,13 @@ from . import __version__
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    # Everything after a bare `--` is passed to vc_render_tifxyz untouched; split it off before argparse,
+    # which would otherwise let a positional REMAINDER swallow options such as --image.
+    extra: list[str] = []
+    if "--" in argv:
+        i = argv.index("--")
+        argv, extra = argv[:i], argv[i + 1 :]
     ap = argparse.ArgumentParser(prog="inkagree", description=__doc__.splitlines()[0])
     ap.add_argument("--version", action="version", version=f"inkagree {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -37,11 +44,6 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--volume-url", help="3D ink prediction OME-Zarr (default: PHercParis4 v3-78k-fullsup)")
     r.add_argument(
         "--cache-home", type=Path, help="HOME for the renderer's remote chunk cache (persists streamed chunks)"
-    )
-    r.add_argument(
-        "extra",
-        nargs=argparse.REMAINDER,
-        help="after --: extra vc_render_tifxyz args, e.g. --surface-interpolation smooth",
     )
     sm = sub.add_parser("summarize", help="aggregate per-segment compare results under a k-of-n rule")
     sm.add_argument("results", nargs="+", type=Path, help="JSON files written by `inkagree compare --json`")
@@ -69,6 +71,8 @@ def main(argv: list[str] | None = None) -> int:
         "--gate-min-gain", type=float, default=0.002, help="AUC an offset must gain over (0,0) to count as misalignment"
     )
     a = ap.parse_args(argv)
+    if extra and a.cmd != "render":
+        ap.error("arguments after -- are only accepted by `render`")
 
     if a.cmd == "summarize":
         from .summary import summarize
@@ -97,7 +101,6 @@ def main(argv: list[str] | None = None) -> int:
         from .labels import INK3D
         from .render import render
 
-        extra = a.extra[1:] if a.extra[:1] == ["--"] else a.extra
         info = render(a.dir / "mesh", a.out, a.volume_url or INK3D, a.preset, extra,
                       binary=a.binary, image=a.image, cache_home=a.cache_home)  # fmt: skip
         print(f"{a.out}: {info['shape']} (label level {info['level']})")

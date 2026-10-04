@@ -28,6 +28,20 @@ PRESETS = {
 SKIP_SIGNATURE = "all slices exist, skipping"
 
 
+def merge_args(preset: list[str], extra: list[str]) -> list[str]:
+    """Preset flag/value pairs, minus any flag that `extra` sets again, then `extra`.
+
+    So `-- --slice-step 1` replaces the preset's `--slice-step 0.5` instead of passing the flag twice.
+    Preset entries are all `--flag value` pairs.
+    """
+    given = {t for t in extra if t.startswith("--")}
+    out = []
+    for flag, value in zip(preset[::2], preset[1::2]):
+        if flag not in given:
+            out += [flag, value]
+    return out + list(extra)
+
+
 def max_composite(tifdir: Path) -> np.ndarray:
     comp = None
     for f in sorted(tifdir.glob("*.tif")):
@@ -67,7 +81,7 @@ def render(
     args = [
         "--volume", str(cache), "--remote-url", volume_url, "--scale-segmentation", "1",
         "--segmentation", str(mesh.resolve()), "--tif-output", str(work.resolve()),
-        *PRESETS[preset]["args"], *(extra or []),
+        *merge_args(PRESETS[preset]["args"], extra or []),
     ]  # fmt: skip
     if binary is not None:
         cmd = [binary, *args]
@@ -83,6 +97,8 @@ def render(
         env = None
     log = out.with_suffix(".render.log")
     with open(log, "w") as fh:
+        fh.write("# inkagree command: " + " ".join(cmd) + "\n")  # provenance: exactly how this arm was made
+        fh.flush()
         subprocess.run(cmd, check=True, stdout=fh, stderr=subprocess.STDOUT, env=env)
     text = log.read_text(errors="replace")
     if SKIP_SIGNATURE in text:

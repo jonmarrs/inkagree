@@ -58,7 +58,9 @@ Segments that were not compared (frame mismatch, misaligned, undetermined) are l
 | `tutorial` (default) | `--group-idx 2 --scale 1`, 16 slices at step 0.5 | 2 (9.6 µm) | villa's 3D-ink tutorial |
 | `metric` | `--group-idx 1 --scale 0.25`, 5 slices at step 1 | 3 (19.2 µm) | villa's spiral-fitting ink metric |
 
-Anything after `--` is passed to `vc_render_tifxyz` (e.g. `--surface-interpolation smooth`). An arm can
+Anything after `--` is passed to `vc_render_tifxyz` (e.g. `--surface-interpolation smooth`). A flag given
+there **replaces** the preset's value for that flag (e.g. `-- --slice-step 1`), and the exact command is the
+first line of the arm's `.render.log`. An arm can
 also be any 2D `.npy` or TIFF on the same frame: uint8 as-is, or probabilities in [0, 1], quantised to
 256 levels. To compare scorer outputs, pass `--gate-on` the raw render (see the gate, below).
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inkagree"
-version = "0.2.0"
+version = "0.2.1"
 description = "Which of two ink renders agrees better with villa's published ink labels? Exact AP/AUC on the label frame, alignment gate, paired block bootstrap."
 readme = "README.md"
 requires-python = ">=3.10"

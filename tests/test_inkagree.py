@@ -272,3 +272,40 @@ def test_summarize_cli(tmp_path, capsys):
         files.append(str(f))
     assert cli.main(["summarize", *files, "--k", "3"]) == 0
     assert "VERDICT: B agrees better" in capsys.readouterr().out
+
+
+def test_extra_args_override_the_preset_instead_of_duplicating_it(tmp_path):
+    from inkagree.render import merge_args
+
+    m = merge_args(PRESETS["tutorial"]["args"], ["--slice-step", "1", "--surface-interpolation", "smooth"])
+    assert m.count("--slice-step") == 1 and m[m.index("--slice-step") + 1] == "1"
+    assert m[m.index("--num-slices") + 1] == "16" and "--surface-interpolation" in m
+    mesh = tmp_path / "mesh"
+    mesh.mkdir()
+    info = render(mesh, tmp_path / "a.tif", "u", "tutorial", ["--slice-step", "2"], binary=_fake_renderer(tmp_path))
+    cmd = Path(info["log"]).read_text().splitlines()[0]  # the recorded command
+    assert cmd.count("--slice-step") == 1 and "--slice-step 2" in cmd
+
+
+def test_cli_render_keeps_options_and_passes_everything_after_the_separator(tmp_path, capsys):
+    # regression: argparse.REMAINDER used to swallow --binary/--image when given after the positionals
+    (tmp_path / "seg" / "mesh").mkdir(parents=True)
+    out = tmp_path / "arm.tif"
+    rc = cli.main(["render", str(tmp_path / "seg"), str(out), "--binary", _fake_renderer(tmp_path),
+                   "--", "--slice-step", "1", "--surface-interpolation", "smooth"])  # fmt: skip
+    assert rc == 0 and out.exists()
+    cmd = out.with_suffix(".render.log").read_text().splitlines()[0]  # the recorded command
+    assert cmd.count("--slice-step") == 1 and "--slice-step 1" in cmd and "--surface-interpolation smooth" in cmd
+
+
+def test_cli_refuses_a_separator_outside_render(capsys):
+    with pytest.raises(SystemExit):
+        cli.main(["segments", "--", "--x"])
+
+
+def test_the_render_log_records_the_command(tmp_path):
+    mesh = tmp_path / "mesh"
+    mesh.mkdir()
+    info = render(mesh, tmp_path / "a.tif", "u", "metric", ["--slice-step", "2"], binary=_fake_renderer(tmp_path))
+    first = Path(info["log"]).read_text().splitlines()[0]
+    assert first.startswith("# inkagree command: ") and "--slice-step 2" in first and first.count("--slice-step") == 1
