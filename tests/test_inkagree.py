@@ -152,7 +152,7 @@ def _fake_renderer(tmp_path, log_line=""):
 import sys, numpy as np, tifffile, pathlib
 a = sys.argv; out = pathlib.Path(a[a.index('--tif-output') + 1])
 for i in range(3):
-    tifffile.imwrite(out / f'{{i:02d}}.tif', np.full((8, 10), 10 * (i + 1), np.uint8))
+    tifffile.imwrite(out / f'{{i:02d}}.tif', np.full((8, 10), 10 * (i + 1), np.uint8), compression='lzw')  # like vc_render_tifxyz
 print({log_line!r}); print(' '.join(a[1:]))
 """)
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
@@ -309,3 +309,14 @@ def test_the_render_log_records_the_command(tmp_path):
     info = render(mesh, tmp_path / "a.tif", "u", "metric", ["--slice-step", "2"], binary=_fake_renderer(tmp_path))
     first = Path(info["log"]).read_text().splitlines()[0]
     assert first.startswith("# inkagree command: ") and "--slice-step 2" in first and first.count("--slice-step") == 1
+
+
+def test_lzw_slices_from_the_renderer_can_be_read(tmp_path):
+    # vc_render_tifxyz writes LZW TIFFs; reading them needs imagecodecs (a declared dependency since 0.2.2)
+    d = tmp_path / "s"
+    d.mkdir()
+    for i in range(2):
+        tifffile.imwrite(d / f"{i:02d}.tif", np.full((4, 4), 7 * (i + 1), np.uint8), compression="lzw")
+    from inkagree.render import max_composite
+
+    assert (max_composite(d) == 14).all()
