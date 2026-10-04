@@ -65,6 +65,11 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--seed", type=int, default=20261003)
     c.add_argument("--json", type=Path)
     c.add_argument(
+        "--all-domain",
+        action="store_true",
+        help="evaluate on the whole mesh-valid domain, ignoring villa's supervision mask (not recommended: the labels are only annotated inside it)",
+    )
+    c.add_argument(
         "--gate-on", type=Path, help="run the alignment gate on this image (e.g. the raw render) instead of arm A"
     )
     c.add_argument(
@@ -111,10 +116,18 @@ def main(argv: list[str] | None = None) -> int:
 
     arm_a, arm_b = load_arm(a.a), load_arm(a.b)
     ink = fetch_labels(a.seg, a.level, a.labels_version)
+    sup = None
+    if not a.all_domain:
+        from .labels import fetch_supervision
+
+        sup = fetch_supervision(a.seg, a.level, a.labels_version)
+        if sup is None:
+            print(f"{a.seg}: WARNING no supervision mask published; evaluating on the whole mesh-valid domain",
+                  file=sys.stderr)  # fmt: skip
     dom = domain_mask(a.dir / "mesh" / "x.tif", arm_a.shape)
     gate_img = load_arm(a.gate_on) if a.gate_on else None
     res = compare_arms(arm_a, arm_b, ink, dom, block=a.block, n_boot=a.boot, seed=a.seed,
-                       gate_min_gain=a.gate_min_gain, gate_image=gate_img)  # fmt: skip
+                       gate_min_gain=a.gate_min_gain, gate_image=gate_img, supervision=sup)  # fmt: skip
     res.update(segment=a.seg, level=a.level, arm_a=str(a.a), arm_b=str(a.b))
     if a.json:
         a.json.write_text(json.dumps(res, indent=2) + "\n")

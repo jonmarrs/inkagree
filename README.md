@@ -17,6 +17,13 @@ setting, a scorer, or a model agree better with the labels, or only differently?
   * a paired block-bootstrap interval for the difference;
   * a verdict only when that interval excludes zero.
 
+> **Correction in 0.3.0: evaluation is now restricted to villa's supervision mask by default.** villa
+> publishes a `supervision.zarr` beside each `inklabels.zarr`. On the 8 PHercParis4 segments it covers only
+> 3–13% of the canvas and holds 97–100% of the labelled ink: the labels are annotated only inside it.
+> Versions 0.1–0.2 evaluated on the whole mesh-valid domain. That counted real but unannotated ink as false
+> positives, deflated AP/AUC, and could penalise the arm that finds more ink. `--all-domain` restores the
+> old behaviour; don't use it for claims.
+
 ## Install
 
 ```bash
@@ -66,7 +73,7 @@ also be any 2D `.npy` or TIFF on the same frame: uint8 as-is, or probabilities i
 
 ## Reading the result
 
-* **`dAP` and its interval** are AP(B) − AP(A) on the segment's mesh-valid domain, with a 95% paired block
+* **`dAP` and its interval** are AP(B) − AP(A) on the segment's mesh-valid **and supervised** domain, with a 95% paired block
   bootstrap (256-px blocks, 2000 resamples, fixed seed). "B agrees better" or "A agrees better" only when
   the interval excludes zero. Otherwise: "no resolved difference".
 * **The alignment gate** finds where agreement with the labels peaks over ±2 px shifts.
@@ -103,6 +110,8 @@ inkagree reproduces the two registered studies it came from, from their stored i
 
 ## What it cannot do
 
+* **The labels cover only the supervised region.** inkagree evaluates there by default (0.3.0). A segment
+  without a published supervision mask falls back to the mesh-valid domain, with a warning.
 * **The labels are not ground truth.** villa's README says scroll labels start as hand-annotated
   strokes and are refined by iterative pseudo-labelling. They therefore favour whatever geometry and
   models produced them (default-mode, fine-grid renders). A win for the incumbent is weaker evidence

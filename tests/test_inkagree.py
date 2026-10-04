@@ -193,6 +193,7 @@ def test_cli_compare_end_to_end(tmp_path, monkeypatch, capsys):
     (tmp_path / "seg" / "mesh").mkdir(parents=True)
     tifffile.imwrite(tmp_path / "seg" / "mesh" / "x.tif", np.ones((80, 100), np.float32))
     monkeypatch.setattr("inkagree.labels.fetch_labels", lambda seg, level, version=None: ink)
+    monkeypatch.setattr("inkagree.labels.fetch_supervision", lambda seg, level, version=None: None)
     rc = cli.main(["compare", "S", str(tmp_path / "seg"), str(tmp_path / "a.tif"), str(tmp_path / "b.tif"),
                    "--level", "2", "--boot", "100", "--json", str(tmp_path / "r.json")])  # fmt: skip
     assert rc == 0 and "B agrees better" in capsys.readouterr().out
@@ -320,3 +321,44 @@ def test_lzw_slices_from_the_renderer_can_be_read(tmp_path):
     from inkagree.render import max_composite
 
     assert (max_composite(d) == 14).all()
+
+
+# ----------------------------------------------------------------------------- supervision (0.3.0)
+
+
+def test_unannotated_ink_penalises_an_arm_unless_evaluation_is_supervised():
+    # true ink everywhere; villa-style labels annotate only the left half (the supervised region)
+    H, W = 512, 640
+    truth = _blobs(H, W, 400, 11)
+    sup = np.zeros((H, W), bool)
+    sup[:, : W // 2] = True
+    labels = truth & sup
+    rng = np.random.default_rng(12)
+    noise = rng.integers(0, 60, (H, W))
+    a = np.clip(noise + (truth & sup) * 150, 0, 255).astype(np.uint8)  # finds ink only where annotated
+    b = np.clip(noise + truth * 150, 0, 255).astype(np.uint8)  # finds ink everywhere (equally well on the left)
+    dom = np.ones((H, W), bool)
+    unsup = compare_arms(a, b, labels, dom, block=128, n_boot=200)
+    supv = compare_arms(a, b, labels, dom, block=128, n_boot=200, supervision=sup)
+    assert unsup["verdict"] == "A agrees better"  # the flaw: B's real right-half ink counts as false positives
+    assert supv["d_ap"] == 0 and supv["verdict"] == "no resolved difference"  # identical where labels exist
+    assert supv["domain"] == "mesh-valid AND supervised" and supv["domain_px"] == H * (W // 2)
+    assert "not be exhaustive" in unsup["domain"]
+
+
+def test_cli_uses_supervision_by_default_and_can_opt_out(tmp_path, monkeypatch, capsys):
+    a, b, ink = _arms(400, 500)
+    tifffile.imwrite(tmp_path / "a.tif", a)
+    tifffile.imwrite(tmp_path / "b.tif", b)
+    (tmp_path / "seg" / "mesh").mkdir(parents=True)
+    tifffile.imwrite(tmp_path / "seg" / "mesh" / "x.tif", np.ones((80, 100), np.float32))
+    sup = np.zeros(ink.shape, bool)
+    sup[:200] = True
+    monkeypatch.setattr("inkagree.labels.fetch_labels", lambda seg, level, version=None: ink)
+    monkeypatch.setattr("inkagree.labels.fetch_supervision", lambda seg, level, version=None: sup)
+    base = ["compare", "S", str(tmp_path / "seg"), str(tmp_path / "a.tif"), str(tmp_path / "b.tif"), "--level", "2",
+            "--boot", "50"]  # fmt: skip
+    assert cli.main([*base, "--json", str(tmp_path / "s.json")]) == 0
+    assert json.loads((tmp_path / "s.json").read_text())["domain_px"] == 200 * 500
+    assert cli.main([*base, "--all-domain", "--json", str(tmp_path / "u.json")]) == 0
+    assert json.loads((tmp_path / "u.json").read_text())["domain_px"] == 400 * 500

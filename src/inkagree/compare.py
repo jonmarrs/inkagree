@@ -63,6 +63,7 @@ def compare_arms(
     gate_window: int | None = None,
     gate_min_gain: float = 0.002,
     gate_image: np.ndarray | None = None,
+    supervision: np.ndarray | None = None,
     rng: np.random.Generator | None = None,
 ) -> dict:
     """`dom_full` is the domain at arm A's full canvas shape (mapping computed before any crop).
@@ -70,11 +71,17 @@ def compare_arms(
     The alignment gate runs on `gate_image` if given (e.g. the raw render, when the arms are a weak scorer's
     outputs whose AUC surface is flat), else on arm A. `gate_min_gain` is the AUC an offset must gain over
     (0, 0) to count as evidence of misalignment (0.002 by default; 0 reproduces a strict argmax).
+
+    `supervision` (bool, on the label frame) restricts evaluation to where the labels are defined. villa's
+    labels are only annotated inside their supervision mask; elsewhere unlabelled ink would count as a false
+    positive. Without it the whole mesh-valid domain is used, and the result says so.
     """
     if a.shape != dom_full.shape:
         raise ValueError(f"domain {dom_full.shape} must match arm A's canvas {a.shape}")
     H = min(a.shape[0], b.shape[0], ink.shape[0])
     W = min(a.shape[1], b.shape[1], ink.shape[1])
+    if supervision is not None:
+        H, W = min(H, supervision.shape[0]), min(W, supervision.shape[1])
     off = max(abs(s - t) for s, t in ((a.shape[0], ink.shape[0]), (a.shape[1], ink.shape[1]),
                                       (b.shape[0], ink.shape[0]), (b.shape[1], ink.shape[1])))  # fmt: skip
     res: dict = {"shape": [H, W], "arm_a_shape": list(a.shape), "arm_b_shape": list(b.shape),
@@ -84,6 +91,15 @@ def compare_arms(
                    reason=f"canvas and labels differ by {off} px (> {MAX_CROP}); wrong level or render settings?")  # fmt: skip
         return res
     a, b, ink, dom = a[:H, :W], b[:H, :W], ink[:H, :W], dom_full[:H, :W]
+    if supervision is not None:
+        sup = supervision[:H, :W]
+        if sup.shape != dom.shape:
+            raise ValueError(f"supervision {supervision.shape} must cover the compared frame {dom.shape}")
+        res["mesh_domain_px"] = int(dom.sum())
+        dom = dom & sup
+        res["domain"] = "mesh-valid AND supervised"
+    else:
+        res["domain"] = "mesh-valid (labels may not be exhaustive here)"
     res["domain_px"] = int(dom.sum())
     res["label_ink_frac"] = float(ink[dom].mean()) if dom.any() else float("nan")
     g_img = a if gate_image is None else gate_image[:H, :W]

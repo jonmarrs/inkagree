@@ -68,6 +68,25 @@ def fetch_labels(
     return a > 127
 
 
+def fetch_supervision(
+    seg: str, level: int, version: str | None = None, scroll: str = SCROLL, scan: str = SCAN
+) -> np.ndarray | None:
+    """The supervision mask beside the labels (where they were annotated), as bool, or None if not published.
+
+    villa's labels are only defined inside this mask: on the 8 PHercParis4 segments it covers 3-13% of the
+    canvas and holds 97-100% of the labelled ink. Outside it, "no label" means "not annotated", not "no ink".
+    """
+    import tensorstore as ts
+
+    try:
+        version = version or label_versions(seg, scroll, scan)[-1]
+        path = f"{scroll}/segments/{seg}/ink-labels/2.4um-volume-{scan}/{version}/supervision.zarr/{level}/"
+        t = ts.open({"driver": "zarr3", "kvstore": {"driver": "http", "base_url": BUCKET, "path": path}}).result()
+    except Exception:  # no labels or no supervision published for this segment/version
+        return None
+    return t.read().result() > 127
+
+
 def fetch_mesh(seg: str, dest: Path, scroll: str = SCROLL, scan: str = SCAN) -> Path:
     """Download the segment's 2.4 um tifxyz mesh into `dest` (x.tif, y.tif, z.tif, meta.json)."""
     name = f"{seg}-on-{scan}-2.4um.tifxyz"
