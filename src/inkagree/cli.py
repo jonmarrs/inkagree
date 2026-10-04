@@ -5,6 +5,7 @@
     inkagree render DIR OUT.tif [--preset P] (--image IMG | --binary BIN) [-- EXTRA vc_render_tifxyz ARGS]
                                                         render SEG's 3D ink prediction through DIR/mesh, max over slices
     inkagree compare SEG DIR A B --level L [--json OUT] compare arms A and B (TIFF or .npy) against SEG's labels
+    inkagree summarize R.json... --k K                aggregate compare results: a verdict only if resolved in >= K segments
 
 Exit codes: 0 compared; 2 frame mismatch, misaligned or undetermined; 1 error.
 """
@@ -42,6 +43,12 @@ def main(argv: list[str] | None = None) -> int:
         nargs=argparse.REMAINDER,
         help="after --: extra vc_render_tifxyz args, e.g. --surface-interpolation smooth",
     )
+    sm = sub.add_parser("summarize", help="aggregate per-segment compare results under a k-of-n rule")
+    sm.add_argument("results", nargs="+", type=Path, help="JSON files written by `inkagree compare --json`")
+    sm.add_argument(
+        "--k", type=int, required=True, help="resolved segments needed for a verdict (declare it in advance)"
+    )
+    sm.add_argument("--json", type=Path)
     c = sub.add_parser("compare", help="compare two arms against the labels")
     c.add_argument("seg")
     c.add_argument("dir", type=Path, help="segment dir holding mesh/")
@@ -63,6 +70,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     a = ap.parse_args(argv)
 
+    if a.cmd == "summarize":
+        from .summary import summarize
+
+        res = summarize([json.loads(p.read_text()) for p in a.results], a.k)
+        if a.json:
+            a.json.write_text(json.dumps(res, indent=2) + "\n")
+        print(f"{res['n_compared']}/{res['n_results']} compared; dAP > 0 resolved in {res['resolved_b_better']}, "
+              f"< 0 in {res['resolved_a_better']} (k = {res['k']}); median dAP {res['d_ap_median']}")  # fmt: skip
+        for seg, st in res["not_compared"].items():
+            print(f"  not compared: {seg} ({st})")
+        print(f"VERDICT: {res['verdict']}")
+        return 0
     if a.cmd == "segments":
         from .labels import labelled_segments
 

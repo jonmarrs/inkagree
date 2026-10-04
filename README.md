@@ -42,6 +42,17 @@ inkagree compare 20231016151002 seg/ linear.tif smooth.tif --level 2 --json resu
 #   alignment peak (0, 0), 87,619,600 domain px, label ink 1.51%
 ```
 
+A claim about a setting needs several segments. Write each comparison with `--json`, then aggregate under
+a rule you declare **before** looking (0.2.0):
+
+```bash
+inkagree summarize results/*.json --k 6
+# 8/8 compared; dAP > 0 resolved in 0, < 0 in 6 (k = 6); median dAP ...
+# VERDICT: A agrees better
+```
+
+Segments that were not compared (frame mismatch, misaligned, undetermined) are listed and never counted.
+
 | preset | vc_render_tifxyz settings | label level | used by |
 |---|---|---|---|
 | `tutorial` (default) | `--group-idx 2 --scale 1`, 16 slices at step 0.5 | 2 (9.6 µm) | villa's 3D-ink tutorial |

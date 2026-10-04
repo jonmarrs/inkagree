@@ -234,5 +234,41 @@ def test_gate_on_uses_the_given_image():
     shifted = np.zeros_like(b)
     shifted[:, :-2] = b[:, 2:]  # a gate image mis-registered by 2 px
     r = compare_arms(a, b, ink, dom, block=128, n_boot=50, gate_image=shifted, gate_min_gain=0.0)
-    assert r["status"] == "misaligned" and (r["gate"]["peak_dy"], r["gate"]["peak_dx"]) == (0, 2)  # gate[:, x] = b[:, x + 2]
+    assert r["status"] == "misaligned" and (r["gate"]["peak_dy"], r["gate"]["peak_dx"]) == (
+        0,
+        2,
+    )  # gate[:, x] = b[:, x + 2]
     assert compare_arms(a, b, ink, dom, block=128, n_boot=50, gate_image=b)["passes"]
+
+
+# ----------------------------------------------------------------------------- summarize
+
+
+def _r(seg, d, lo, hi, status="compared"):
+    return {"segment": seg, "status": status, "d_ap": d, "d_ap_ci": [lo, hi]}
+
+
+def test_summarize_needs_k_resolved_segments_and_never_counts_skipped_ones():
+    from inkagree.summary import summarize
+
+    rs = [_r(f"s{i}", 0.01, 0.002, 0.02) for i in range(5)] + [
+        _r("x", 0.0, -0.01, 0.01),
+        _r("m", 0, 0, 0, "misaligned"),
+    ]
+    assert summarize(rs, 5)["verdict"] == "B agrees better"
+    s = summarize(rs, 6)
+    assert (
+        s["verdict"] == "no consistent difference" and s["n_compared"] == 6 and s["not_compared"] == {"m": "misaligned"}
+    )
+    neg = [_r(f"s{i}", -0.01, -0.02, -0.001) for i in range(6)]
+    assert summarize(neg, 6)["verdict"] == "A agrees better"
+
+
+def test_summarize_cli(tmp_path, capsys):
+    files = []
+    for i in range(3):
+        f = tmp_path / f"r{i}.json"
+        f.write_text(json.dumps(_r(f"s{i}", 0.01, 0.001, 0.02)))
+        files.append(str(f))
+    assert cli.main(["summarize", *files, "--k", "3"]) == 0
+    assert "VERDICT: B agrees better" in capsys.readouterr().out
