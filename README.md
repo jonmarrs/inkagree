@@ -126,6 +126,11 @@ inkagree reproduces the two registered studies it came from, from their stored i
   strokes and are refined by iterative pseudo-labelling. They therefore favour whatever geometry and
   models produced them (default-mode, fine-grid renders). A win for the incumbent is weaker evidence
   than a win against it.
+* **The default ink volume may be in-sample on these segments.** villa's PHercParis4 ink training set
+  (`hf://buckets/scrollprize/datasets/ink/phercparis4`) is exactly the 8 labelled segments, with no held-out
+  validation masks. The 3D model behind `INK3D` does not publish its training data. Absolute agreement may
+  therefore be train-set agreement. Comparisons between render settings are less exposed, but a setting can
+  still win by matching how the labels were made.
 * **One scroll for now.** Only PHercParis4 segments have labels on the scan frame in this layout.
   `inkagree segments` lists them (8 as of 2026-10-03).
 * **Rendering streams a lot.** The renderer caches streamed chunks under `HOME`. Whole segments at the
