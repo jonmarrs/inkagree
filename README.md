@@ -88,15 +88,25 @@ also be any 2D `.npy` or TIFF on the same frame: uint8 as-is, or probabilities i
 Measuring villa #1818 (`--surface-interpolation smooth`) on all 8 labelled segments
 ([vesuvius-autoresearch](https://github.com/jonmarrs/vesuvius-autoresearch), findings 71–73):
 
-* on villa's segment meshes (~20-voxel grid cells), smooth vs linear changes AP by only −0.0001;
+* on villa's segment meshes (~20-voxel grid cells), smooth vs linear makes no consistent difference
+  (|ΔAP| < 0.01 in all 8);
 * on grids as coarse as spiral-fit surfaces (~80-voxel cells), the raw render agrees slightly better
-  under smooth (resolved in 6 of 8, about +1–2% of AP), while villa's ink-count metric moves by −8% to
-  +19% per segment.
+  under smooth (resolved in 8 of 8, about +0.8% of AP), while villa's ink-count metric moves by −8% to
+  +19% per segment;
+* at villa's metric settings (`--preset metric`), the sampling of any post-#1146 source build agrees
+  better with the labels than that of villa's published image (8 of 8, about +5% of AP), and a band
+  twice as wide agrees better still (8 of 8, about +8%).
 
-**First use with inkagree itself (0.2.2):** villa's 3D-ink tutorial renders with `--slice-step 0.5` for a
-"focused band". On all 8 labelled segments, 0.5 agrees with the labels better than 0.25 (8 of 8 resolved,
-about −5% of AP), 1.0 (7 of 8, about −11%) and 2.0 (8 of 8, about −38%): an interior optimum. Report and
-per-segment JSON: `reports/sampling_band_vs_labels.md` in vesuvius-autoresearch.
+All on the supervised region (0.3.0). Earlier numbers computed with 0.1–0.2 on the whole surface are
+superseded; see `reports/supervised_reanalysis.md` in vesuvius-autoresearch.
+
+**First use with inkagree itself:** villa's 3D-ink tutorial renders with `--slice-step 0.5` for a
+"focused band". On all 8 labelled segments, on the supervised region, 0.5 agrees with the labels better
+than a thinner band (0.25: 8 of 8, about −6% of AP) and a much wider one (2.0: 8 of 8, about −20%).
+Against 1.0 there is no consistent difference (4 of 8). The tutorial's choice sits in the best range.
+*Corrected with 0.3.0:* first computed on the whole surface with 0.2.2, that version also claimed 0.5
+beat 1.0, which does not hold where the labels are defined. Reports: `reports/sampling_band_vs_labels.md`
+and `reports/supervised_reanalysis.md` in vesuvius-autoresearch.
 
 ## Validation
 
