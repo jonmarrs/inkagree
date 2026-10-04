@@ -126,11 +126,13 @@ inkagree reproduces the two registered studies it came from, from their stored i
   strokes and are refined by iterative pseudo-labelling. They therefore favour whatever geometry and
   models produced them (default-mode, fine-grid renders). A win for the incumbent is weaker evidence
   than a win against it.
-* **The default ink volume may be in-sample on these segments.** villa's PHercParis4 ink training set
-  (`hf://buckets/scrollprize/datasets/ink/phercparis4`) is exactly the 8 labelled segments, with no held-out
-  validation masks. The 3D model behind `INK3D` does not publish its training data. Absolute agreement may
-  therefore be train-set agreement. Comparisons between render settings are less exposed, but a setting can
-  still win by matching how the labels were made.
+* **The default ink volume is in-sample on these segments.** The 3D model behind `INK3D` is
+  [`scrollprize/ink_3d_dino_guided`](https://huggingface.co/scrollprize/ink_3d_dino_guided) (step 78k,
+  `..._paris4_v3_fullsup`). Its `config.json` trains on villa's PHercParis4 ink dataset (`segments_path …/phercparis4`,
+  `force_full_supervision: true`). That dataset is exactly the 8 labelled segments, with no held-out validation masks.
+  * Agreement with the labels is training-set agreement.
+  * A comparison between render settings measures which setting best reproduces what the model was trained
+    toward. It can favour settings that match how its targets were made (a ±3-voxel projection).
 * **One scroll for now.** Only PHercParis4 segments have labels on the scan frame in this layout.
   `inkagree segments` lists them (8 as of 2026-10-03).
 * **Rendering streams a lot.** The renderer caches streamed chunks under `HOME`. Whole segments at the
