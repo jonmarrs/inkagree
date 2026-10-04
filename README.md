@@ -86,6 +86,11 @@ Measuring villa #1818 (`--surface-interpolation smooth`) on all 8 labelled segme
   under smooth (resolved in 6 of 8, about +1–2% of AP), while villa's ink-count metric moves by −8% to
   +19% per segment.
 
+**First use with inkagree itself (0.2.2):** villa's 3D-ink tutorial renders with `--slice-step 0.5` for a
+"focused band". On all 8 labelled segments, 0.5 agrees with the labels better than 0.25 (8 of 8 resolved,
+about −5% of AP), 1.0 (7 of 8, about −11%) and 2.0 (8 of 8, about −38%): an interior optimum. Report and
+per-segment JSON: `reports/sampling_band_vs_labels.md` in vesuvius-autoresearch.
+
 ## Validation
 
 inkagree reproduces the two registered studies it came from, from their stored inputs, **exactly**:
